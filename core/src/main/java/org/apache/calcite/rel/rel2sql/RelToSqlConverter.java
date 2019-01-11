@@ -306,7 +306,21 @@ public class RelToSqlConverter extends SqlImplementor
                 new SqlIdentifier("DUAL", POS), null, null,
                 null, null, null, null, null));
       }
-      if (list.size() == 1) {
+      if (list.isEmpty()) {
+        //In this case we need to construct the following query:
+        // SELECT NULL as C0, NULL as C1, NULL as C2 ... FROM DUAL WHERE FALSE
+        //This would return an empty result set with the same number of columns as the field names.
+        final List<SqlNode> values2 = new ArrayList<>();
+        for (String fieldName : fieldNames) {
+          SqlCall toto = SqlStdOperatorTable.AS.createCall(POS, SqlLiteral.createNull(POS),
+              new SqlIdentifier(fieldName, POS));
+          values2.add(toto);
+        }
+        query = new SqlSelect(POS, null,
+            new SqlNodeList(values2, POS),
+            new SqlIdentifier("DUAL", POS), SqlLiteral.createBoolean(false, POS), null,
+            null, null, null, null, null);
+      } else if (list.size() == 1) {
         query = list.get(0);
       } else {
         query = SqlStdOperatorTable.UNION_ALL.createCall(

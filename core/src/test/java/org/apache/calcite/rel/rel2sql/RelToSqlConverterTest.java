@@ -24,6 +24,7 @@ import org.apache.calcite.plan.hep.HepProgram;
 import org.apache.calcite.plan.hep.HepProgramBuilder;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.rules.UnionMergeRule;
+import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeSystemImpl;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.runtime.FlatLists;
@@ -3017,6 +3018,35 @@ public class RelToSqlConverterTest {
         + "JSON_OBJECTAGG(KEY \"product_name\" VALUE \"product_id\" NULL ON NULL)\n"
         + "FROM \"foodmart\".\"product\"";
     sql(query).ok(expected);
+  }
+
+  private static class Dialect extends SqlDialect {
+
+    Dialect() {
+      super(
+          SqlDialect.EMPTY_CONTEXT
+              .withDatabaseProduct(SqlDialect.DatabaseProduct.H2).withIdentifierQuoteString("\""));
+    }
+
+    @Override public boolean supportsAliasedValues() {
+      return false;
+    }
+  }
+
+  @Test public void testEmptyEnumerableValues() {
+    final RelBuilder builder = relBuilder();
+
+    RelDataType rowType =
+        builder.getTypeFactory().builder()
+            .add("a", SqlTypeName.BIGINT)
+            .add("b", SqlTypeName.VARCHAR, 10)
+            .build();
+
+    RelNode relNode = builder.values(rowType).build();
+    assertThat(toSql(relNode, new Dialect()),
+        isLinux("SELECT NULL AS \"a\", NULL AS \"b\"\n"
+            + "FROM \"DUAL\"\n"
+            + "WHERE FALSE"));
   }
 
   @Test public void testJsonPredicate() {
